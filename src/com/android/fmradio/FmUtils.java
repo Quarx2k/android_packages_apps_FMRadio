@@ -322,4 +322,11 @@ public class FmUtils {
         editor.putBoolean(FM_IS_SPEAKER_MODE, isSpeaker);
         editor.commit();
     }
+
+    /** Convert freq. Ex: 104.4 to 104400 **/
+    public static int fixFrequency(Float frequency) {
+        String freqStr = frequency.toString().replaceAll("\\D+","") + "00";
+        return Integer.parseInt(freqStr);
+    }
+
 }

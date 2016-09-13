@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 
-include $(call all-makefiles-under,$(LOCAL_PATH))
+include $(CLEAR_VARS)
+
+LOCAL_MODULE    := libfmjni
+LOCAL_SRC_FILES := android_fm.cpp \
+                   android_fmradio_Receiver.cpp
+
+LOCAL_SHARED_LIBRARIES += liblog libnativehelper
+LOCAL_LDFLAGS := -llog
+
+include $(BUILD_SHARED_LIBRARY)

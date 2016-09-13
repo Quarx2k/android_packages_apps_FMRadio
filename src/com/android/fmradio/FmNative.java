@@ -16,139 +16,224 @@
 
 package com.android.fmradio;
 
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.util.Log;
+import java.util.Locale;
+
 /**
  * This class define FM native interface, will description FM native interface
  */
 public class FmNative {
+
+    private static final String TAG = FmNative.class.getSimpleName();
+    private Handler mHandler;
+
+    /**
+     * Indicates that the FmReceiver is in an idle state. No resources are
+     * allocated and power consumption is kept to a minimum.
+     */
+    public static final int STATE_IDLE = 0;
+
+    /**
+     * Indicates that the FmReceiver is allocating resources and preparing to
+     * receive FM radio.
+     */
+    public static final int STATE_STARTING = 1;
+
+    /**
+     * Indicates that the FmReceiver is receiving FM radio. Note that the
+     * FmReceiver is considered to be started even if it is receiving noise or
+     * gets a signal with not good enough quality to consider a valid channel.
+     */
+    public static final int STATE_STARTED = 2;
+
+    /**
+     * Indicates that the FmReceiver has allocated resources and is ready to
+     * instantly receive FM radio.
+     */
+    public static final int STATE_PAUSED = 3;
+
+    /**
+     * Indicates that the FmReceiver is scanning. FM radio will not be received
+     * in this state.
+     */
+    public static final int STATE_SCANNING = 4;
+
+    public FmNative(Handler handler) {
+        this.mHandler = handler;
+    }
+
+    public void start(FmBand band) {
+        _fm_receiver_start(band.getMinFrequency(), band.getMaxFrequency(), band
+                .getDefaultFrequency(), band.getChannelOffset());
+    }
+
+    public boolean startAsync(FmBand band) {
+        _fm_receiver_startAsync(band.getMinFrequency(), band.getMaxFrequency(), band
+                .getDefaultFrequency(), band.getChannelOffset());
+        return true;
+    }
+
+    public boolean reset() {
+        _fm_receiver_reset();
+        return true;
+    }
+
+    public void pause() {
+        _fm_receiver_pause();
+    }
+
+    public void resume() {
+        _fm_receiver_resume();
+    }
+
+    public int getState() {
+        return _fm_receiver_getState();
+    }
+
+    public boolean setFrequency(Float frequency) {
+        _fm_receiver_setFrequency(FmUtils.fixFrequency(frequency));
+        return true;
+    }
+
+    public int getFrequency() {
+        return _fm_receiver_getFrequency();
+    }
+
+    public void scanUp() {
+        _fm_receiver_scanUp();
+    }
+
+    public void scanDown() {
+        _fm_receiver_scanDown();
+    }
+
+    public void startFullScan() {
+        _fm_receiver_startFullScan();
+    }
+
+    public boolean stopScan() {
+        _fm_receiver_stopScan();
+        return true;
+    }
+
+    public boolean isRDSDataSupported() {
+        return false;//_fm_receiver_isRDSDataSupported();
+    }
+
+    public boolean isTunedToValidChannel() {
+        return _fm_receiver_isTunedToValidChannel();
+    }
+
+    public void setThreshold(int threshold) {
+        _fm_receiver_setThreshold(threshold);
+    }
+
+    public int getThreshold() {
+        return _fm_receiver_getThreshold();
+    }
+
+    public int getSignalStrength() {
+        return _fm_receiver_getSignalStrength();
+    }
+
+    public boolean isPlayingInStereo() {
+        return _fm_receiver_isPlayingInStereo();
+    }
+
+    public void setForceMono(boolean forceMono) {
+        _fm_receiver_setForceMono(forceMono);
+    }
+
+    public void setAutomaticAFSwitching(boolean automatic) {
+        _fm_receiver_setAutomaticAFSwitching(automatic);
+    }
+
+    public void setAutomaticTASwitching(boolean automatic) {
+        _fm_receiver_setAutomaticTASwitching(automatic);
+    }
+
+    public boolean sendExtraCommand(String command, String[] extras) {
+        return _fm_receiver_sendExtraCommand(command, extras);
+    }
+
     static {
         System.loadLibrary("fmjni");
     }
 
-    /**
-     * Open FM device, call before power up
-     *
-     * @return (true,success; false, failed)
-     */
-    static native boolean openDev();
+    private void notifyOnStateChanged(int oldState, int newState) {
+        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnStateChang oldstate: %s, newstate %s", oldState, newState));
+    }
 
-    /**
-     * Close FM device, call after power down
-     *
-     * @return (true, success; false, failed)
-     */
-    static native boolean closeDev();
+    private void notifyOnStarted() {
+        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnStarted"));
+    }
 
-    /**
-     * power up FM with frequency use long antenna
-     *
-     * @param frequency frequency(50KHZ, 87.55; 100KHZ, 87.5)
-     *
-     * @return (true, success; false, failed)
-     */
-    static native boolean powerUp(float frequency);
+    private void notifyOnRDSDataFound(Bundle bundle, int frequency) {
+        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnRDSDataFound, freq:%s", frequency));
+        Message msg = mHandler.obtainMessage(Messages.RDS_CHANGED, bundle.get("PSN"));
+        mHandler.sendMessage(msg);
+    }
 
-    /**
-     * Power down FM
-     *
-     * @param type (0, FMRadio; 1, FMTransimitter)
-     *
-     * @return (true, success; false, failed)
-     */
-    static native boolean powerDown(int type);
+    private void notifyOnSignalStrengthChanged(int signalStrength) {
+        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnSignalStrengthChanged, stringth:%s", signalStrength));
+        Message msg = mHandler.obtainMessage(Messages.SIGNAL_CHANGED, signalStrength);
+        mHandler.sendMessage(msg);
+    }
 
-    /**
-     * tune to frequency
-     *
-     * @param frequency frequency(50KHZ, 87.55; 100KHZ, 87.5)
-     *
-     * @return (true, success; false, failed)
-     */
-    static native boolean tune(float frequency);
+    private void notifyOnScan(int frequency, int signalLevel, int scanDirection, boolean aborted) {
+        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnScan, stringth:%s", frequency));
+        Message msg = mHandler.obtainMessage(Messages.SCAN_COMPLETE, frequency);
+        mHandler.sendMessage(msg);
+    }
 
-    /**
-     * seek with frequency in direction
-     *
-     * @param frequency frequency(50KHZ, 87.55; 100KHZ, 87.5)
-     * @param isUp (true, next station; false previous station)
-     *
-     * @return frequency(float)
-     */
-    static native float seek(float frequency, boolean isUp);
+    private native void _fm_receiver_start(int minFreq, int maxFreq, int defaultFreq, int offset);
 
-    /**
-     * Auto scan(from 87.50-108.00)
-     *
-     * @return The scan station array(short)
-     */
-    static native short[] autoScan();
+    private native void _fm_receiver_startAsync(int minFreq, int maxFreq, int defaultFreq,
+                                                int offset);
 
-    /**
-     * Stop scan, also can stop seek, other native when scan should call stop
-     * scan first, else will execute wait auto scan finish
-     *
-     * @return (true, can stop scan process; false, can't stop scan process)
-     */
-    static native boolean stopScan();
+    private native int _fm_receiver_reset();
 
-    /**
-     * Open or close rds fuction
-     *
-     * @param rdson The rdson (true, open; false, close)
-     *
-     * @return rdsset
-     */
-    static native int setRds(boolean rdson);
+    private native void _fm_receiver_pause();
 
-    /**
-     * Read rds events
-     *
-     * @return rds event type
-     */
-    static native short readRds();
+    private native void _fm_receiver_resume();
 
-    /**
-     * Get program service(program name)
-     *
-     * @return The program name
-     */
-    static native byte[] getPs();
+    private native int _fm_receiver_getState();
 
-    /**
-     * Get radio text, RDS standard does not support Chinese character
-     *
-     * @return The LRT (Last Radio Text) bytes
-     */
-    static native byte[] getLrText();
+    private native void _fm_receiver_setFrequency(int frequency);
 
-    /**
-     * Active alternative frequencies
-     *
-     * @return The frequency(float)
-     */
-    static native short activeAf();
+    private native int _fm_receiver_getFrequency();
 
-    /**
-     * Mute or unmute FM voice
-     *
-     * @param mute (true, mute; false, unmute)
-     *
-     * @return (true, success; false, failed)
-     */
-    static native int setMute(boolean mute);
+    private native void _fm_receiver_scanUp();
 
-    /**
-     * Inquiry if RDS is support in driver
-     *
-     * @return (1, support; 0, NOT support; -1, error)
-     */
-    static native int isRdsSupport();
+    private native void _fm_receiver_scanDown();
 
-    /**
-     * Switch antenna
-     *
-     * @param antenna antenna (0, long antenna, 1 short antenna)
-     *
-     * @return (0, success; 1 failed; 2 not support)
-     */
-    static native int switchAntenna(int antenna);
+    private native void _fm_receiver_startFullScan();
+
+    private native void _fm_receiver_stopScan();
+
+    private native boolean _fm_receiver_isRDSDataSupported();
+
+    private native boolean _fm_receiver_isTunedToValidChannel();
+
+    private native void _fm_receiver_setThreshold(int threshold);
+
+    private native int _fm_receiver_getThreshold();
+
+    private native int _fm_receiver_getSignalStrength();
+
+    private native boolean _fm_receiver_isPlayingInStereo();
+
+    private native void _fm_receiver_setForceMono(boolean forceMono);
+
+    private native void _fm_receiver_setAutomaticAFSwitching(boolean automatic);
+
+    private native void _fm_receiver_setAutomaticTASwitching(boolean automatic);
+
+    private native void _fm_receiver_setRDS(boolean receiveRDS);
+
+    private native boolean _fm_receiver_sendExtraCommand(String command, String[] extras);
 }

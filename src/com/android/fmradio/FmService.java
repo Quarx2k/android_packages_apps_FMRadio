@@ -209,7 +209,8 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
     private static OnExitListener sExitListener = null;
     // The latest status for mute/unmute
     private boolean mIsMuted = false;
-
+    // FMNative instance
+    private FmNative mFmNative = null;
     // Audio Patch
     private AudioPatch mAudioPatch = null;
     private Object mRenderLock = new Object();
@@ -410,7 +411,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
            mAudioTrack.release();
            mAudioTrack = null;
        }
-       initAudioRecordSink();
+        initAudioRecordSink();
 
         mIsRender = true;
         createRenderThread();
@@ -568,10 +569,12 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      * @return true if FM device open, false FM device not open
      */
     private boolean openDevice() {
+/*
         if (!mIsDeviceOpen) {
             mIsDeviceOpen = FmNative.openDev();
         }
-        return mIsDeviceOpen;
+*/
+        return true; //mIsDeviceOpen;
     }
 
     /**
@@ -580,13 +583,15 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      * @return true if close FM device success, false close FM device failed
      */
     private boolean closeDevice() {
-        boolean isDeviceClose = false;
+        boolean isDeviceClose = true;
+/*
         if (mIsDeviceOpen) {
             isDeviceClose = FmNative.closeDev();
             mIsDeviceOpen = !isDeviceClose;
         }
         // quit looper
         mFmServiceHandler.getLooper().quit();
+*/
         return isDeviceClose;
     }
 
@@ -635,11 +640,13 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         if (!mIsDeviceOpen) {
             openDevice();
         }
-
-        if (!FmNative.powerUp(frequency)) {
+        FmBand fmBand = new FmBand(FmBand.BAND_EU);
+        fmBand.setDefaultFrequency(FmUtils.fixFrequency(frequency));
+        if (!mFmNative.startAsync(fmBand)) {
             mPowerStatus = POWER_DOWN;
             return false;
         }
+
         mPowerStatus = POWER_UP;
         // need mute after power up
         setMute(true);
@@ -707,7 +714,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         setRds(false);
         enableFmAudio(false);
 
-        if (!FmNative.powerDown(0)) {
+        if (!mFmNative.reset()) {
 
             if (isRdsSupported()) {
                 stopRdsThread();
@@ -760,7 +767,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
     private boolean tuneStation(float frequency) {
         if (mPowerStatus == POWER_UP) {
             setRds(false);
-            boolean bRet = FmNative.tune(frequency);
+            boolean bRet = mFmNative.setFrequency(frequency);
             if (bRet) {
                 setRds(true);
                 mCurrentStation = FmUtils.computeStation(frequency);
@@ -812,7 +819,8 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
 
         setRds(false);
         mIsNativeSeeking = true;
-        float fRet = FmNative.seek(frequency, isUp);
+        float fRet = 0;//FmNative.seek(frequency, isUp);
+        mFmNative.scanUp();
         mIsNativeSeeking = false;
         // make mIsStopScanCalled false, avoid stop scan make this true,
         // when start scan, it will return null.
@@ -836,7 +844,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         short[] stationsInShort = null;
         if (!mIsStopScanCalled) {
             mIsNativeScanning = true;
-            stationsInShort = FmNative.autoScan();
+	//stationsInShort = FmNative.autoScan();
             mIsNativeScanning = false;
         }
 
@@ -885,7 +893,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         mFmServiceHandler.removeMessages(FmListener.MSGID_SEEK_FINISHED);
         if (mIsNativeScanning || mIsNativeSeeking) {
             mIsStopScanCalled = true;
-            bRet = FmNative.stopScan();
+            bRet = mFmNative.stopScan();
         }
         return bRet;
     }
@@ -915,6 +923,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
     }
 
     private int setRds(boolean on) {
+/*
         if (mPowerStatus != POWER_UP) {
             return -1;
         }
@@ -922,7 +931,8 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         if (isRdsSupported()) {
             ret = FmNative.setRds(on);
         }
-        return ret;
+*/
+        return -1;
     }
 
     /**
@@ -954,13 +964,15 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
     }
 
     private int activeAf() {
+/*
         if (mPowerStatus != POWER_UP) {
             Log.w(TAG, "activeAf, FM is not powered up");
             return -1;
         }
 
         int frequency = FmNative.activeAf();
-        return frequency;
+*/
+        return 0;
     }
 
     /**
@@ -988,13 +1000,15 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      * @return (1, success; other, failed)
      */
     public int setMute(boolean mute) {
+/*
         if (mPowerStatus != POWER_UP) {
             Log.w(TAG, "setMute, FM is not powered up");
             return -1;
         }
-        int iRet = FmNative.setMute(mute);
+        int iRet = mFmNative.setMute(mute);
         mIsMuted = mute;
-        return iRet;
+*/
+        return 0;//iRet;
     }
 
     /**
@@ -1012,7 +1026,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      * @return (true, support; false, not support)
      */
     public boolean isRdsSupported() {
-        boolean isRdsSupported = (FmNative.isRdsSupport() == 1);
+        boolean isRdsSupported = (mFmNative.isRDSDataSupported());
         return isRdsSupported;
     }
 
@@ -1104,7 +1118,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      */
     private int switchAntenna(int antenna) {
         // if fm not powerup, switchAntenna will flag whether has earphone
-        int ret = FmNative.switchAntenna(antenna);
+        int ret = 0;//FmNative.switchAntenna(antenna);
         return ret;
     }
 
@@ -1290,11 +1304,11 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         HandlerThread handlerThread = new HandlerThread("FmRadioServiceThread");
         handlerThread.start();
         mFmServiceHandler = new FmRadioServiceHandler(handlerThread.getLooper());
-
-        openDevice();
+	mFmNative = new FmNative(mFmServiceHandler);
         // set speaker to default status, avoid setting->clear data.
         setForceUse(mIsSpeakerUsed);
-
+        mAudioManager.setParameters("handle_fm=1048580");
+        mAudioManager.setParameters(String.format("fm_volume=%s", 5f/15f));
         initAudioRecordSink();
         createRenderThread();
     }
@@ -1344,7 +1358,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
                     mAudioSource = (AudioDevicePort) port;
                 } else if (type == AudioSystem.DEVICE_OUT_WIRED_HEADSET ||
                         type == AudioSystem.DEVICE_OUT_WIRED_HEADPHONE) {
-                    mAudioSink = (AudioDevicePort) port;
+                    mAudioSink = (AudioDevicePort) port;	
                 }
             }
         }
@@ -1547,11 +1561,11 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
                         break;
                     }
 
-                    int iRdsEvents = FmNative.readRds();
+                    int iRdsEvents = 0;//FmNative.readRds();
                     if (iRdsEvents != 0) {
                         Log.d(TAG, "startRdsThread, is rds events: " + iRdsEvents);
                     }
-
+/*
                     if (RDS_EVENT_PROGRAMNAME == (RDS_EVENT_PROGRAMNAME & iRdsEvents)) {
                         byte[] bytePS = FmNative.getPs();
                         if (null != bytePS) {
@@ -1595,7 +1609,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
                             }
                         }
                     }
-
+*/
                     if (RDS_EVENT_AF == (RDS_EVENT_AF & iRdsEvents)) {
                         /*
                          * add for rds AF
@@ -1605,7 +1619,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
                         } else if (mPowerStatus == POWER_DOWN) {
                             Log.d(TAG, "startRdsThread, fm is power down, do nothing.");
                         } else {
-                            int iFreq = FmNative.activeAf();
+                            int iFreq = 0;//FmNative.activeAf();
                             if (FmUtils.isValidStation(iFreq)) {
                                 // if the new frequency is not equal to current
                                 // frequency.
@@ -2736,10 +2750,11 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
             return false;
         }
         boolean isSeekTune = false;
-        float seekStation = FmNative.seek(frequency, false);
+        float seekStation = 0;///FmNative.seek(frequency, false);
+	mFmNative.scanUp();
         int station = FmUtils.computeStation(seekStation);
         if (FmUtils.isValidStation(station)) {
-            isSeekTune = FmNative.tune(seekStation);
+            isSeekTune = mFmNative.setFrequency(seekStation);
             if (isSeekTune) {
                 playFrequency(seekStation);
             }
