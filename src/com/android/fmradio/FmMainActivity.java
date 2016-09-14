@@ -670,6 +670,7 @@ public class FmMainActivity extends Activity implements FmFavoriteEditDialog.Edi
         super.onResume();
         mIsActivityForeground = true;
         mScroller.onResume();
+
         if (null == mService) {
             Log.d(TAG, "onResume, mService is null");
             return;

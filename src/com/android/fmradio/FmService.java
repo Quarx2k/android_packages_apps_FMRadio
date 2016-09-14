@@ -135,10 +135,6 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
     private String mRtTextString = "";
     // Notification target class name
     private String mTargetClassName = "com.android.fmradio.FmMainActivity";
-    // RDS thread use to receive the information send by station
-    private Thread mRdsThread = null;
-    // record whether RDS thread exit
-    private boolean mIsRdsThreadExit = false;
 
     // State variables
     // Record whether FM is in native scan state
@@ -660,11 +656,6 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         // Add notification to the title bar.
         updatePlayingNotification();
 
-        // Start the RDS thread if RDS is supported.
-        if (isRdsSupported()) {
-            startRdsThread();
-        }
-
         if (!mWakeLock.isHeld()) {
             mWakeLock.acquire();
         }
@@ -716,10 +707,6 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
 
         if (!mFmNative.reset()) {
 
-            if (isRdsSupported()) {
-                stopRdsThread();
-            }
-
             if (mWakeLock.isHeld()) {
                 mWakeLock.release();
             }
@@ -729,10 +716,6 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         }
         // activity used for update powerdown menu
         mPowerStatus = POWER_DOWN;
-
-        if (isRdsSupported()) {
-            stopRdsThread();
-        }
 
         if (mWakeLock.isHeld()) {
             mWakeLock.release();
@@ -1476,10 +1459,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
     public void onDestroy() {
         mAudioManager.setParameters("AudioFmPreStop=1");
         setMute(true);
-        // stop rds first, avoid blocking other native method
-        if (isRdsSupported()) {
-            stopRdsThread();
-        }
+
         unregisterFmBroadcastReceiver();
         unregisterSdcardListener();
         abandonAudioFocus();
@@ -1543,118 +1523,6 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
             }
         }
         return START_NOT_STICKY;
-    }
-
-    /**
-     * Start RDS thread to update RDS information
-     */
-    private void startRdsThread() {
-        mIsRdsThreadExit = false;
-        if (null != mRdsThread) {
-            return;
-        }
-        mRdsThread = new Thread() {
-            public void run() {
-                while (true) {
-                    if (mIsRdsThreadExit) {
-                        break;
-                    }
-
-                    int iRdsEvents = 0;//FmNative.readRds();
-                    if (iRdsEvents != 0) {
-                        Log.d(TAG, "startRdsThread, is rds events: " + iRdsEvents);
-                    }
-/*
-                    if (RDS_EVENT_PROGRAMNAME == (RDS_EVENT_PROGRAMNAME & iRdsEvents)) {
-                        byte[] bytePS = FmNative.getPs();
-                        if (null != bytePS) {
-                            String ps = new String(bytePS).trim();
-                            if (!mPsString.equals(ps)) {
-                                updatePlayingNotification();
-                            }
-                            ContentValues values = null;
-                            if (FmStation.isStationExist(mContext, mCurrentStation)) {
-                                values = new ContentValues(1);
-                                values.put(Station.PROGRAM_SERVICE, ps);
-                                FmStation.updateStationToDb(mContext, mCurrentStation, values);
-                            } else {
-                                values = new ContentValues(2);
-                                values.put(Station.FREQUENCY, mCurrentStation);
-                                values.put(Station.PROGRAM_SERVICE, ps);
-                                FmStation.insertStationToDb(mContext, values);
-                            }
-                            setPs(ps);
-                        }
-                    }
-
-                    if (RDS_EVENT_LAST_RADIOTEXT == (RDS_EVENT_LAST_RADIOTEXT & iRdsEvents)) {
-                        byte[] byteLRText = FmNative.getLrText();
-                        if (null != byteLRText) {
-                            String rds = new String(byteLRText).trim();
-                            if (!mRtTextString.equals(rds)) {
-                                updatePlayingNotification();
-                            }
-                            setLRText(rds);
-                            ContentValues values = null;
-                            if (FmStation.isStationExist(mContext, mCurrentStation)) {
-                                values = new ContentValues(1);
-                                values.put(Station.RADIO_TEXT, rds);
-                                FmStation.updateStationToDb(mContext, mCurrentStation, values);
-                            } else {
-                                values = new ContentValues(2);
-                                values.put(Station.FREQUENCY, mCurrentStation);
-                                values.put(Station.RADIO_TEXT, rds);
-                                FmStation.insertStationToDb(mContext, values);
-                            }
-                        }
-                    }
-*/
-                    if (RDS_EVENT_AF == (RDS_EVENT_AF & iRdsEvents)) {
-                        /*
-                         * add for rds AF
-                         */
-                        if (mIsScanning || mIsSeeking) {
-                            Log.d(TAG, "startRdsThread, seek or scan going, no need to tune here");
-                        } else if (mPowerStatus == POWER_DOWN) {
-                            Log.d(TAG, "startRdsThread, fm is power down, do nothing.");
-                        } else {
-                            int iFreq = 0;//FmNative.activeAf();
-                            if (FmUtils.isValidStation(iFreq)) {
-                                // if the new frequency is not equal to current
-                                // frequency.
-                                if (mCurrentStation != iFreq) {
-                                    if (!mIsScanning && !mIsSeeking) {
-                                        Log.d(TAG, "startRdsThread, seek or scan not going,"
-                                                + "need to tune here");
-                                        tuneStationAsync(FmUtils.computeFrequency(iFreq));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Do not handle other events.
-                    // Sleep 500ms to reduce inquiry frequency
-                    try {
-                        final int hundredMillisecond = 500;
-                        Thread.sleep(hundredMillisecond);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        };
-        mRdsThread.start();
-    }
-
-    /**
-     * Stop RDS thread to stop listen station RDS change
-     */
-    private void stopRdsThread() {
-        if (null != mRdsThread) {
-            // Must call closedev after stopRDSThread.
-            mIsRdsThreadExit = true;
-            mRdsThread = null;
-        }
     }
 
     /**
@@ -2598,6 +2466,24 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
                     saveRecording(bundle.getString(RECODING_FILE_NAME));
                     break;
 
+                case Messages.RDS_CHANGED:
+                    String rds = ((String) msg.obj).trim();
+                    if (!mRtTextString.equals(rds)) {
+                        updatePlayingNotification();
+                    }
+                    setLRText(rds);
+                    ContentValues values = null;
+                    if (FmStation.isStationExist(mContext, mCurrentStation)) {
+                        values = new ContentValues(1);
+                        values.put(Station.RADIO_TEXT, rds);
+                        FmStation.updateStationToDb(mContext, mCurrentStation, values);
+                    } else {
+                        values = new ContentValues(2);
+                        values.put(Station.FREQUENCY, mCurrentStation);
+                        values.put(Station.RADIO_TEXT, rds);
+                        FmStation.insertStationToDb(mContext, values);
+                    }
+                    break;
                 default:
                     break;
             }
