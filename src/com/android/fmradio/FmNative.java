@@ -199,7 +199,7 @@ public class FmNative {
     }
 
     static {
-        System.loadLibrary("fmjni");
+        System.loadLibrary("bfmjni");
     }
 
     private void notifyOnStateChanged(int oldState, int newState) {

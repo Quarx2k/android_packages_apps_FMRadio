@@ -16,7 +16,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE    := libfmjni
+LOCAL_MODULE    := libbfmjni
 LOCAL_SRC_FILES := android_fm.cpp \
                    android_fmradio_Receiver.cpp
 
