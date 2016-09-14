@@ -111,7 +111,7 @@ public class FmNative {
     }
 
     public boolean setFrequency(Float frequency) {
-        _fm_receiver_setFrequency(FmUtils.computeStation(frequency));
+        _fm_receiver_setFrequency(FmUtils.fixFrequency(frequency));
         return true;
     }
 
