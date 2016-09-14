@@ -66,6 +66,8 @@ public class FmNative {
     
     private FmBand mFmBand;
 
+    private int[] frequency = null;
+    
     public FmNative(Handler handler) {
         this.mHandler = handler;
     }
@@ -80,6 +82,14 @@ public class FmNative {
         mFmBand = band;
         _fm_receiver_startAsync(mFmBand.getMinFrequency(), mFmBand.getMaxFrequency(), mFmBand
                 .getDefaultFrequency(), mFmBand.getChannelOffset());
+        try {
+             while (getState() == STATE_IDLE) {
+               Thread.sleep(700);
+             }
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+          return false;
+        }
         return true;
     }
 
@@ -101,7 +111,7 @@ public class FmNative {
     }
 
     public boolean setFrequency(Float frequency) {
-        _fm_receiver_setFrequency(FmUtils.fixFrequency(frequency));
+        _fm_receiver_setFrequency(FmUtils.computeStation(frequency));
         return true;
     }
 
@@ -129,12 +139,18 @@ public class FmNative {
         return getFrequency();
     }
 
-    public void scanDown() {
-        _fm_receiver_scanDown();
-    }
-
-    public void startFullScan() {
+    public int[] startFullScan() {
         _fm_receiver_startFullScan();
+        try {
+             while (getState() == STATE_SCANNING) {
+               Thread.sleep(700);
+             }
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+          stopScan();
+          return null;
+        }
+        return frequency;
     }
 
     public boolean stopScan() {
@@ -211,6 +227,22 @@ public class FmNative {
         Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnScan, freq:%s", frequency));
         Message msg = mHandler.obtainMessage(Messages.SCAN_COMPLETE, frequency);
         mHandler.sendMessage(msg);
+    }
+
+    private void notifyOnFullScan(int[] frequency, int[] signalLevel, boolean aborted) {
+        for(int i = 0; i < frequency.length; i++) {
+
+          String freq = String.valueOf(frequency[i]);
+          int length = freq.length();
+          int fixedFreq;
+          if (length == 7) { //1044000
+             fixedFreq = Integer.parseInt(freq.substring(0, freq.length() - 3));
+          } else { //973000
+             fixedFreq = Integer.parseInt(freq.substring(0, freq.length() - 2));
+          }
+          frequency[i] = fixedFreq;
+        }
+        this.frequency = frequency;
     }
 
     private native void _fm_receiver_start(int minFreq, int maxFreq, int defaultFreq, int offset);

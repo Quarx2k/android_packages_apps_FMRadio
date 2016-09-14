@@ -332,7 +332,14 @@ public class FmUtils {
     /** Convert freq. Ex: 104400 to 104.4 **/
     public static float fixFrequencyBack(Integer frequency) {
         String freqStr = frequency.toString();
-        freqStr = freqStr.substring(0, 3) + "." + freqStr.substring(3, freqStr.length());
+        int strLength = freqStr.length();
+
+        if (strLength == 5) {
+          freqStr = freqStr.substring(0, 2) + "." + freqStr.substring(2, strLength);
+        } else if (strLength == 6) {
+          freqStr = freqStr.substring(0, 3) + "." + freqStr.substring(3, strLength);
+        }
+
         return Float.parseFloat(freqStr);
     }
 }

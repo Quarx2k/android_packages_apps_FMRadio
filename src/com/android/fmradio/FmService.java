@@ -823,31 +823,23 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
 
         setRds(false);
         setMute(true);
-        short[] stationsInShort = null;
         if (!mIsStopScanCalled) {
             mIsNativeScanning = true;
-	//stationsInShort = FmNative.autoScan();
+	    stations = mFmNative.startFullScan();
             mIsNativeScanning = false;
         }
 
         setRds(true);
         if (mIsStopScanCalled) {
             // Received a message to power down FM, or interrupted by a phone
-            // call. Do not return any stations. stationsInShort = null;
+            // call. Do not return any stations. stations = null;
             // if cancel scan, return invalid station -100
-            stationsInShort = new short[] {
+            stations = new int[] {
                 -100
             };
             mIsStopScanCalled = false;
         }
 
-        if (null != stationsInShort) {
-            int size = stationsInShort.length;
-            stations = new int[size];
-            for (int i = 0; i < size; i++) {
-                stations[i] = stationsInShort[i];
-            }
-        }
         return stations;
     }
 
@@ -2401,6 +2393,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
                                 -1, 0
                         };
                     } else {
+                       Log.e(TAG, "Test:" + Arrays.toString(stations));
                         result = updateStations(stations);
                         scanTuneStation = result[0];
                         tuneStation(FmUtils.computeFrequency(mCurrentStation));
@@ -2521,7 +2514,8 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
         }
         if (powerUp(curFrequency)) {
             if (FmUtils.isFirstTimePlayFm(mContext)) {
-                isPowerUp = firstPlaying(curFrequency);
+                //isPowerUp = firstPlaying(curFrequency);
+                isPowerUp = playFrequency(curFrequency);
                 FmUtils.setIsFirstTimePlayFm(mContext);
             } else {
                 isPowerUp = playFrequency(curFrequency);
