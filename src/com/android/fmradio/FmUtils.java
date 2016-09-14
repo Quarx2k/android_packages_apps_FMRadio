@@ -329,4 +329,10 @@ public class FmUtils {
         return Integer.parseInt(freqStr);
     }
 
+    /** Convert freq. Ex: 104400 to 104.4 **/
+    public static float fixFrequencyBack(Integer frequency) {
+        String freqStr = frequency.toString();
+        freqStr = freqStr.substring(0, 3) + "." + freqStr.substring(3, freqStr.length());
+        return Float.parseFloat(freqStr);
+    }
 }

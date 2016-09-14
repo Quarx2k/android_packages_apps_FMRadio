@@ -62,18 +62,24 @@ public class FmNative {
      */
     public static final int STATE_SCANNING = 4;
 
+    public int CURRENT_STATE = STATE_IDLE;
+    
+    private FmBand mFmBand;
+
     public FmNative(Handler handler) {
         this.mHandler = handler;
     }
 
     public void start(FmBand band) {
-        _fm_receiver_start(band.getMinFrequency(), band.getMaxFrequency(), band
-                .getDefaultFrequency(), band.getChannelOffset());
+        mFmBand = band;
+        _fm_receiver_start(mFmBand.getMinFrequency(), mFmBand.getMaxFrequency(), mFmBand
+                .getDefaultFrequency(), mFmBand.getChannelOffset());
     }
 
     public boolean startAsync(FmBand band) {
-        _fm_receiver_startAsync(band.getMinFrequency(), band.getMaxFrequency(), band
-                .getDefaultFrequency(), band.getChannelOffset());
+        mFmBand = band;
+        _fm_receiver_startAsync(mFmBand.getMinFrequency(), mFmBand.getMaxFrequency(), mFmBand
+                .getDefaultFrequency(), mFmBand.getChannelOffset());
         return true;
     }
 
@@ -103,8 +109,24 @@ public class FmNative {
         return _fm_receiver_getFrequency();
     }
 
-    public void scanUp() {
-        _fm_receiver_scanUp();
+    public int scan(boolean isUp) {
+
+        if (isUp) {
+          _fm_receiver_scanUp();
+        } else {
+          _fm_receiver_scanDown();
+        }
+        try {
+             while (getState() == STATE_SCANNING) {
+               Thread.sleep(700);
+             }
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+          stopScan();
+          return mFmBand.getMaxFrequency();
+        }
+
+        return getFrequency();
     }
 
     public void scanDown() {
@@ -165,27 +187,28 @@ public class FmNative {
     }
 
     private void notifyOnStateChanged(int oldState, int newState) {
-        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnStateChang oldstate: %s, newstate %s", oldState, newState));
+        Log.d(TAG, String.format(Locale.ENGLISH, "notifyOnStateChang oldstate: %s, newstate %s", oldState, newState));
     }
 
     private void notifyOnStarted() {
-        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnStarted"));
+        Log.d(TAG, String.format(Locale.ENGLISH, "notifyOnStarted"));
     }
 
     private void notifyOnRDSDataFound(Bundle bundle, int frequency) {
-        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnRDSDataFound, freq:%s", frequency));
+        Log.d(TAG, String.format(Locale.ENGLISH, "notifyOnRDSDataFound, freq:%s", frequency));
+        Log.d(TAG, String.format(Locale.ENGLISH, "notifyOnRDSDataFound, PSN:%s", bundle.get("PSN")));
         Message msg = mHandler.obtainMessage(Messages.RDS_CHANGED, bundle.get("PSN"));
         mHandler.sendMessage(msg);
     }
 
     private void notifyOnSignalStrengthChanged(int signalStrength) {
-        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnSignalStrengthChanged, stringth:%s", signalStrength));
+        Log.d(TAG, String.format(Locale.ENGLISH, "notifyOnSignalStrengthChanged, stringth:%s", signalStrength));
         Message msg = mHandler.obtainMessage(Messages.SIGNAL_CHANGED, signalStrength);
         mHandler.sendMessage(msg);
     }
 
     private void notifyOnScan(int frequency, int signalLevel, int scanDirection, boolean aborted) {
-        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnScan, stringth:%s", frequency));
+        Log.i(TAG, String.format(Locale.ENGLISH, "notifyOnScan, freq:%s", frequency));
         Message msg = mHandler.obtainMessage(Messages.SCAN_COMPLETE, frequency);
         mHandler.sendMessage(msg);
     }

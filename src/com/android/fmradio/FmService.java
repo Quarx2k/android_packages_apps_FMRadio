@@ -802,8 +802,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
 
         setRds(false);
         mIsNativeSeeking = true;
-        float fRet = 0;//FmNative.seek(frequency, isUp);
-        mFmNative.scanUp();
+        float fRet = FmUtils.fixFrequencyBack(mFmNative.scan(isUp));
         mIsNativeSeeking = false;
         // make mIsStopScanCalled false, avoid stop scan make this true,
         // when start scan, it will return null.
@@ -2635,8 +2634,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
             return false;
         }
         boolean isSeekTune = false;
-        float seekStation = 0;///FmNative.seek(frequency, false);
-	mFmNative.scanUp();
+        float seekStation = FmUtils.fixFrequencyBack(mFmNative.scan(true));
         int station = FmUtils.computeStation(seekStation);
         if (FmUtils.isValidStation(station)) {
             isSeekTune = mFmNative.setFrequency(seekStation);
