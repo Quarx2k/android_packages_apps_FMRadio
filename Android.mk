@@ -15,7 +15,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := FMRadio_static
+LOCAL_MODULE := FMRadioB_static
 LOCAL_SRC_FILES := $(filter-out src/com/android/fmradio/%Activity.java src/com/android/fmradio/dialogs/% src/com/android/fmradio/views/%, $(call all-java-files-under, src))
 LOCAL_RESOURCE_DIR = $(LOCAL_PATH)/res
 include $(BUILD_STATIC_JAVA_LIBRARY)
