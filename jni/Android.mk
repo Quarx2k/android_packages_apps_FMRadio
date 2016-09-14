@@ -20,6 +20,7 @@ LOCAL_MODULE    := libfmjni
 LOCAL_SRC_FILES := android_fm.cpp \
                    android_fmradio_Receiver.cpp
 
+LOCAL_REQUIRED_MODULES := libfmradio.v4l2-fm
 LOCAL_SHARED_LIBRARIES += liblog libnativehelper
 LOCAL_LDFLAGS := -llog
 
