@@ -569,12 +569,11 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      * @return true if FM device open, false FM device not open
      */
     private boolean openDevice() {
-/*
         if (!mIsDeviceOpen) {
-            mIsDeviceOpen = FmNative.openDev();
+            mIsDeviceOpen =  true;//FmNative.openDev();
         }
-*/
-        return true; //mIsDeviceOpen;
+
+        return mIsDeviceOpen;
     }
 
     /**
@@ -583,13 +582,13 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
      * @return true if close FM device success, false close FM device failed
      */
     private boolean closeDevice() {
-        boolean isDeviceClose = true;
-/*
+        boolean isDeviceClose = false;
+
         if (mIsDeviceOpen) {
-            isDeviceClose = FmNative.closeDev();
+            isDeviceClose = true;//FmNative.closeDev();
             mIsDeviceOpen = !isDeviceClose;
         }
-*/
+
         // quit looper
         mFmServiceHandler.getLooper().quit();
 
@@ -1308,6 +1307,7 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
 	mFmNative = new FmNative(mFmServiceHandler);
         // set speaker to default status, avoid setting->clear data.
         setForceUse(mIsSpeakerUsed);
+
         initAudioRecordSink();
         createRenderThread();
     }
