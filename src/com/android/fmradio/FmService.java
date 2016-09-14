@@ -589,9 +589,10 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
             isDeviceClose = FmNative.closeDev();
             mIsDeviceOpen = !isDeviceClose;
         }
+*/
         // quit looper
         mFmServiceHandler.getLooper().quit();
-*/
+
         return isDeviceClose;
     }
 
@@ -1307,8 +1308,6 @@ public class FmService extends Service implements FmRecorder.OnRecorderStateChan
 	mFmNative = new FmNative(mFmServiceHandler);
         // set speaker to default status, avoid setting->clear data.
         setForceUse(mIsSpeakerUsed);
-        mAudioManager.setParameters("handle_fm=1048580");
-        mAudioManager.setParameters(String.format("fm_volume=%s", 5f/15f));
         initAudioRecordSink();
         createRenderThread();
     }
